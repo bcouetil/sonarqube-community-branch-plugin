@@ -35,6 +35,8 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpPut;
 import org.apache.http.client.methods.HttpRequestBase;
+import org.apache.http.HttpEntity;
+import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.message.BasicNameValuePair;
@@ -43,6 +45,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -178,7 +181,29 @@ class GitlabRestClient implements GitlabClient {
 
     private <X> X entity(HttpRequestBase httpRequest, Class<X> type, Consumer<HttpResponse> responseValidator) throws IOException {
         httpRequest.addHeader("PRIVATE-TOKEN", authToken);
-
+        String requestBody = "";
+        
+        if (httpRequest instanceof HttpEntityEnclosingRequestBase) {
+            HttpEntity entity = ((HttpEntityEnclosingRequestBase) httpRequest).getEntity();
+            if (entity != null) {
+                requestBody = URLDecoder.decode( EntityUtils.toString(entity, StandardCharsets.UTF_8), StandardCharsets.UTF_8);
+            }
+        }
+        
+        LOGGER.atDebug()
+            .setMessage("HTTP Request: {} {} | Headers: {}")
+            .addArgument(httpRequest.getMethod())
+            .addArgument(httpRequest.getURI().toString())
+            .addArgument(Arrays.toString(httpRequest.getAllHeaders()).replace(authToken, "***" + authToken.substring(Math.max(0, authToken.length() - 3))))
+            .log();
+        
+        if (!requestBody.isEmpty()) {
+            LOGGER.atDebug()
+                .setMessage("Request Payload: {}")
+                .addArgument(requestBody)
+                .log();
+        }
+        
         try (CloseableHttpClient httpClient = httpClientFactory.get()) {
             HttpResponse httpResponse = httpClient.execute(httpRequest);
 

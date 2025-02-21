@@ -156,5 +156,18 @@ public class PostAnalysisIssueVisitor extends IssueVisitor {
                     && Objects.equals(impacts, other.impacts);
         }
 
+        @Override
+        public String toString() {
+            return "LightIssue{" +
+                    "key='" + key + '\'' +
+                    ", line=" + line +
+                    ", message='" + message + '\'' +
+                    ", resolution='" + resolution + '\'' +
+                    ", status=" + status +
+                    ", impacts=" + impacts +
+                    ", locations=" + locations +
+                    ", ruleKey=" + ruleKey +
+                    '}';
+        }
     }
 }

@@ -18,6 +18,9 @@
  */
 package com.github.mc1arke.sonarqube.plugin.ce.pullrequest;
 
+import com.github.mc1arke.sonarqube.plugin.ce.pullrequest.DiscussionAwarePullRequestDecorator.ProjectIssueIdentifier;
+import com.github.mc1arke.sonarqube.plugin.ce.pullrequest.PostAnalysisIssueVisitor.ComponentIssue;
+import com.github.mc1arke.sonarqube.plugin.ce.pullrequest.PostAnalysisIssueVisitor.LightIssue;
 import com.github.mc1arke.sonarqube.plugin.ce.pullrequest.report.AnalysisIssueSummary;
 import com.github.mc1arke.sonarqube.plugin.ce.pullrequest.report.AnalysisSummary;
 import com.github.mc1arke.sonarqube.plugin.ce.pullrequest.report.ReportGenerator;
@@ -27,6 +30,8 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.sonar.ce.task.projectanalysis.scm.Changeset;
 import org.sonar.ce.task.projectanalysis.scm.ScmInfoRepository;
 import org.sonar.db.alm.setting.AlmSettingDto;
@@ -45,6 +50,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public abstract class DiscussionAwarePullRequestDecorator<C, P, U, D, N> implements PullRequestBuildStatusDecorator {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(DiscussionAwarePullRequestDecorator.class);
 
     private static final String RESOLVED_ISSUE_NEEDING_CLOSED_MESSAGE =
             "This issue no longer exists in SonarQube, but due to other comments being present in this discussion, the discussion is not being being closed automatically. " +
@@ -74,6 +81,9 @@ public abstract class DiscussionAwarePullRequestDecorator<C, P, U, D, N> impleme
         P pullRequest = getPullRequest(client, almSettingDto, projectAlmSettingDto, analysis);
         U user = getCurrentUser(client);
         List<PostAnalysisIssueVisitor.ComponentIssue> openSonarqubeIssues = analysis.getScmReportableIssues();
+        openSonarqubeIssues.forEach(issue -> {
+          LOGGER.debug("Open issue : {}", issue.getIssue().toString()); 
+        });
 
         List<Triple<D, N, Optional<ProjectIssueIdentifier>>> currentProjectSonarqubeComments = findOpenSonarqubeComments(client,
                 pullRequest,
@@ -89,15 +99,18 @@ public abstract class DiscussionAwarePullRequestDecorator<C, P, U, D, N> impleme
                 pullRequest);
 
         List<String> commitIds = getCommitIdsForPullRequest(client, pullRequest);
+        LOGGER.debug("Commit IDs for pull request: {}", commitIds);
         List<Pair<PostAnalysisIssueVisitor.ComponentIssue, String>> uncommentedIssues = findIssuesWithoutComments(openSonarqubeIssues,
                 commentKeysForOpenComments)
                 .stream()
                 .map(DiscussionAwarePullRequestDecorator::loadScmPathsForIssues)
                 .filter(Optional::isPresent)
                 .map(Optional::get)
-                .filter(issue -> isIssueFromCommitInCurrentRequest(issue.getLeft(), commitIds, scmInfoRepository))
+                // .filter(issue -> isIssueFromCommitInCurrentRequest(issue.getLeft(), commitIds, scmInfoRepository))
                 .collect(Collectors.toList());
-
+        uncommentedIssues.forEach(issue -> {
+          LOGGER.debug("Issue to be commented on SCM : {}", issue.getLeft().getIssue().toString()); 
+        });
         uncommentedIssues.forEach(issue -> submitCommitNoteForIssue(client,
                 pullRequest,
                 issue.getLeft(),

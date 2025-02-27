@@ -80,11 +80,17 @@ public abstract class DiscussionAwarePullRequestDecorator<C, P, U, D, N> impleme
         
         P pullRequest = getPullRequest(client, almSettingDto, projectAlmSettingDto, analysis);
         U user = getCurrentUser(client);
-        List<PostAnalysisIssueVisitor.ComponentIssue> openSonarqubeIssues = analysis.getScmReportableIssues();
-        openSonarqubeIssues.forEach(issue -> {
-          LOGGER.debug("Open issue : {}", issue.getIssue().toString()); 
-        });
 
+        LOGGER.debug("Client used", client.toString());
+        List<PostAnalysisIssueVisitor.ComponentIssue> openSonarqubeIssues = analysis.getScmReportableIssues();
+        if (openSonarqubeIssues.isEmpty()) {
+            LOGGER.debug("There is no open SonarQube issues");
+        } else {
+            openSonarqubeIssues.forEach(issue -> {
+                LOGGER.debug("Open SonarQube issues: {}", issue.getIssue().toString()); 
+            });      
+        }
+        
         List<Triple<D, N, Optional<ProjectIssueIdentifier>>> currentProjectSonarqubeComments = findOpenSonarqubeComments(client,
                 pullRequest,
                 user)
@@ -97,24 +103,33 @@ public abstract class DiscussionAwarePullRequestDecorator<C, P, U, D, N> impleme
                 currentProjectSonarqubeComments,
                 openSonarqubeIssues,
                 pullRequest);
+        LOGGER.debug("Comment keys for open comments: {}", commentKeysForOpenComments.toString());
 
         List<String> commitIds = getCommitIdsForPullRequest(client, pullRequest);
         LOGGER.debug("Commit IDs for pull request: {}", commitIds);
+
         List<Pair<PostAnalysisIssueVisitor.ComponentIssue, String>> uncommentedIssues = findIssuesWithoutComments(openSonarqubeIssues,
                 commentKeysForOpenComments)
                 .stream()
                 .map(DiscussionAwarePullRequestDecorator::loadScmPathsForIssues)
                 .filter(Optional::isPresent)
                 .map(Optional::get)
-                // .filter(issue -> isIssueFromCommitInCurrentRequest(issue.getLeft(), commitIds, scmInfoRepository))
+                //.filter(issue -> isIssueFromCommitInCurrentRequest(issue.getLeft(), commitIds, scmInfoRepository))
                 .collect(Collectors.toList());
+
+        LOGGER.debug("scmInfoRepository: {}", scmInfoRepository.toString());
+        if (uncommentedIssues.isEmpty()) {
+            LOGGER.debug("There is no uncommented issue in your pull request after filtering");
+        } else {
+            uncommentedIssues.forEach(issue -> {
+                LOGGER.debug("Issue to be commented on SCM: {}", issue.getLeft().getIssue().toString());
+            });
+        }
+
         AnalysisSummary analysisSummary = reportGenerator.createAnalysisSummary(analysis);
         submitSummaryNote(client, pullRequest, analysis, analysisSummary);
         submitPipelineStatus(client, pullRequest, analysis, analysisSummary);
 
-        uncommentedIssues.forEach(issue -> {
-          LOGGER.debug("Issue to be commented on SCM : {}", issue.getLeft().getIssue().toString()); 
-        });
         uncommentedIssues.forEach(issue -> {
             try {
                 submitCommitNoteForIssue(client,

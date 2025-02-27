@@ -158,7 +158,7 @@ public class PostAnalysisIssueVisitor extends IssueVisitor {
 
         @Override
         public String toString() {
-            return "LightIssue{" +
+            return "LightIssue {" +
                     "key='" + key + '\'' +
                     ", line=" + line +
                     ", message='" + message + '\'' +

@@ -108,19 +108,25 @@ public abstract class DiscussionAwarePullRequestDecorator<C, P, U, D, N> impleme
                 .map(Optional::get)
                 // .filter(issue -> isIssueFromCommitInCurrentRequest(issue.getLeft(), commitIds, scmInfoRepository))
                 .collect(Collectors.toList());
-        uncommentedIssues.forEach(issue -> {
-          LOGGER.debug("Issue to be commented on SCM : {}", issue.getLeft().getIssue().toString()); 
-        });
-        uncommentedIssues.forEach(issue -> submitCommitNoteForIssue(client,
-                pullRequest,
-                issue.getLeft(),
-                issue.getRight(),
-                analysis,
-                reportGenerator.createAnalysisIssueSummary(issue.getLeft(), analysis)));
-
         AnalysisSummary analysisSummary = reportGenerator.createAnalysisSummary(analysis);
         submitSummaryNote(client, pullRequest, analysis, analysisSummary);
         submitPipelineStatus(client, pullRequest, analysis, analysisSummary);
+
+        uncommentedIssues.forEach(issue -> {
+          LOGGER.debug("Issue to be commented on SCM : {}", issue.getLeft().getIssue().toString()); 
+        });
+        uncommentedIssues.forEach(issue -> {
+            try {
+                submitCommitNoteForIssue(client,
+                        pullRequest,
+                        issue.getLeft(),
+                        issue.getRight(),
+                        analysis,
+                        reportGenerator.createAnalysisIssueSummary(issue.getLeft(), analysis));
+            } catch (RuntimeException ex) {
+                LOGGER.warn("Could not post inline comment for issue {}: {}", issue.getLeft().getIssue().key(), ex.getMessage());
+            }
+        });
 
         DecorationResult.Builder builder = DecorationResult.builder();
         createFrontEndUrl(pullRequest, analysis).ifPresent(builder::withPullRequestUrl);

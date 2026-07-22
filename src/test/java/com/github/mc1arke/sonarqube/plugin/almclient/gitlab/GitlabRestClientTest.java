@@ -46,7 +46,8 @@ class GitlabRestClientTest {
 
     @Test
     void checkErrorThrownOnNonSuccessResponseStatus() throws IOException {
-        GitlabRestClient underTest = new GitlabRestClient("http://url.test/api", "token", linkHeaderReader, objectMapper, () -> closeableHttpClient);
+        GitlabRestClient underTest = new GitlabRestClient("http://url.test/api", "token", linkHeaderReader,
+                objectMapper, () -> closeableHttpClient);
 
         CloseableHttpResponse closeableHttpResponse = mock();
         StatusLine statusLine = mock();
@@ -59,7 +60,7 @@ class GitlabRestClientTest {
 
         assertThatThrownBy(() -> underTest.addMergeRequestDiscussion(101, 99, mergeRequestNote))
                 .isExactlyInstanceOf(IllegalStateException.class)
-                .hasMessage("An unexpected response code was returned from the Gitlab API - Expected: 201, Got: 500")
+                .hasMessage("Gitlab API returned HTTP 500 (expected 201)")
                 .hasNoCause();
 
         ArgumentCaptor<HttpUriRequest> requestArgumentCaptor = ArgumentCaptor.captor();
@@ -68,7 +69,8 @@ class GitlabRestClientTest {
         HttpEntityEnclosingRequest request = (HttpEntityEnclosingRequest) requestArgumentCaptor.getValue();
 
         assertThat(request.getRequestLine().getMethod()).isEqualTo("POST");
-        assertThat(request.getRequestLine().getUri()).isEqualTo("http://url.test/api/projects/101/merge_requests/99/discussions");
+        assertThat(request.getRequestLine().getUri())
+                .isEqualTo("http://url.test/api/projects/101/merge_requests/99/discussions");
         assertThat(request.getEntity().getContent()).hasContent("body=note");
     }
 
@@ -84,7 +86,8 @@ class GitlabRestClientTest {
 
         MergeRequestNote mergeRequestNote = new MergeRequestNote("Merge request note");
 
-        GitlabRestClient underTest = new GitlabRestClient("http://api.url", "token", linkHeaderReader, objectMapper, () -> closeableHttpClient);
+        GitlabRestClient underTest = new GitlabRestClient("http://api.url", "token", linkHeaderReader, objectMapper,
+                () -> closeableHttpClient);
         underTest.addMergeRequestDiscussion(123, 321, mergeRequestNote);
 
         ArgumentCaptor<HttpUriRequest> requestArgumentCaptor = ArgumentCaptor.captor();
@@ -93,7 +96,8 @@ class GitlabRestClientTest {
         HttpEntityEnclosingRequest request = (HttpEntityEnclosingRequest) requestArgumentCaptor.getValue();
 
         assertThat(request.getRequestLine().getMethod()).isEqualTo("POST");
-        assertThat(request.getRequestLine().getUri()).isEqualTo("http://api.url/projects/123/merge_requests/321/discussions");
+        assertThat(request.getRequestLine().getUri())
+                .isEqualTo("http://api.url/projects/123/merge_requests/321/discussions");
         assertThat(request.getEntity().getContent()).hasContent("body=Merge+request+note");
     }
 

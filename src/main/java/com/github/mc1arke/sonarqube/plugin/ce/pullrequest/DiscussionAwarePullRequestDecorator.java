@@ -53,21 +53,23 @@ public abstract class DiscussionAwarePullRequestDecorator<C, P, U, D, N> impleme
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DiscussionAwarePullRequestDecorator.class);
 
-    private static final String RESOLVED_ISSUE_NEEDING_CLOSED_MESSAGE =
-            "This issue no longer exists in SonarQube, but due to other comments being present in this discussion, the discussion is not being being closed automatically. " +
-                    "Please manually resolve this discussion once the other comments have been reviewed.";
-    private static final String RESOLVED_SUMMARY_NEEDING_CLOSED_MESSAGE =
-            "This summary note is outdated, but due to other comments being present in this discussion, the discussion is not being being removed. " +
-                    "Please manually resolve this discussion once the other comments have been reviewed.";
+    private static final String RESOLVED_ISSUE_NEEDING_CLOSED_MESSAGE = "This issue no longer exists in SonarQube, but due to other comments being present in this discussion, the discussion is not being being closed automatically. "
+            +
+            "Please manually resolve this discussion once the other comments have been reviewed.";
+    private static final String RESOLVED_SUMMARY_NEEDING_CLOSED_MESSAGE = "This summary note is outdated, but due to other comments being present in this discussion, the discussion is not being being removed. "
+            +
+            "Please manually resolve this discussion once the other comments have been reviewed.";
 
     private static final String VIEW_IN_SONARQUBE_LABEL = "View in SonarQube";
-    private static final Pattern NOTE_MARKDOWN_VIEW_LINK_PATTERN = Pattern.compile("^\\[" + VIEW_IN_SONARQUBE_LABEL + "]\\((.*?)\\)$");
+    private static final Pattern NOTE_MARKDOWN_VIEW_LINK_PATTERN = Pattern
+            .compile("^\\[" + VIEW_IN_SONARQUBE_LABEL + "]\\((.*?)\\)$");
     private static final String DECORATOR_SUMMARY_COMMENT = "decorator-summary-comment";
 
     private final ScmInfoRepository scmInfoRepository;
     private final ReportGenerator reportGenerator;
 
-    protected DiscussionAwarePullRequestDecorator(ScmInfoRepository scmInfoRepository, ReportGenerator reportGenerator) {
+    protected DiscussionAwarePullRequestDecorator(ScmInfoRepository scmInfoRepository,
+            ReportGenerator reportGenerator) {
         super();
         this.scmInfoRepository = scmInfoRepository;
         this.reportGenerator = reportGenerator;
@@ -75,9 +77,9 @@ public abstract class DiscussionAwarePullRequestDecorator<C, P, U, D, N> impleme
 
     @Override
     public DecorationResult decorateQualityGateStatus(AnalysisDetails analysis, AlmSettingDto almSettingDto,
-                                                      ProjectAlmSettingDto projectAlmSettingDto) {
+            ProjectAlmSettingDto projectAlmSettingDto) {
         C client = createClient(almSettingDto, projectAlmSettingDto);
-        
+
         P pullRequest = getPullRequest(client, almSettingDto, projectAlmSettingDto, analysis);
         U user = getCurrentUser(client);
 
@@ -87,15 +89,17 @@ public abstract class DiscussionAwarePullRequestDecorator<C, P, U, D, N> impleme
             LOGGER.debug("There is no open SonarQube issues");
         } else {
             openSonarqubeIssues.forEach(issue -> {
-                LOGGER.debug("Open SonarQube issues: {}", issue.getIssue().toString()); 
-            });      
+                LOGGER.debug("Open SonarQube issues: {}", issue.getIssue().toString());
+            });
         }
-        
-        List<Triple<D, N, Optional<ProjectIssueIdentifier>>> currentProjectSonarqubeComments = findOpenSonarqubeComments(client,
+
+        List<Triple<D, N, Optional<ProjectIssueIdentifier>>> currentProjectSonarqubeComments = findOpenSonarqubeComments(
+                client,
                 pullRequest,
                 user)
                 .stream()
-                .filter(comment -> !projectAlmSettingDto.getMonorepo() || isCommentFromCurrentProject(comment, analysis.getAnalysisProjectKey()))
+                .filter(comment -> !projectAlmSettingDto.getMonorepo()
+                        || isCommentFromCurrentProject(comment, analysis.getAnalysisProjectKey()))
                 .collect(Collectors.toList());
 
         List<String> commentKeysForOpenComments = closeOldDiscussionsAndExtractRemainingKeys(client,
@@ -108,13 +112,15 @@ public abstract class DiscussionAwarePullRequestDecorator<C, P, U, D, N> impleme
         List<String> commitIds = getCommitIdsForPullRequest(client, pullRequest);
         LOGGER.debug("Commit IDs for pull request: {}", commitIds);
 
-        List<Pair<PostAnalysisIssueVisitor.ComponentIssue, String>> uncommentedIssues = findIssuesWithoutComments(openSonarqubeIssues,
+        List<Pair<PostAnalysisIssueVisitor.ComponentIssue, String>> uncommentedIssues = findIssuesWithoutComments(
+                openSonarqubeIssues,
                 commentKeysForOpenComments)
                 .stream()
                 .map(DiscussionAwarePullRequestDecorator::loadScmPathsForIssues)
                 .filter(Optional::isPresent)
                 .map(Optional::get)
-                //.filter(issue -> isIssueFromCommitInCurrentRequest(issue.getLeft(), commitIds, scmInfoRepository))
+                // .filter(issue -> isIssueFromCommitInCurrentRequest(issue.getLeft(),
+                // commitIds, scmInfoRepository))
                 .collect(Collectors.toList());
 
         LOGGER.debug("scmInfoRepository: {}", scmInfoRepository.toString());
@@ -139,7 +145,11 @@ public abstract class DiscussionAwarePullRequestDecorator<C, P, U, D, N> impleme
                         analysis,
                         reportGenerator.createAnalysisIssueSummary(issue.getLeft(), analysis));
             } catch (RuntimeException ex) {
-                LOGGER.warn("Could not post inline comment for issue {}: {}", issue.getLeft().getIssue().key(), ex.getMessage());
+                LOGGER.warn("Could not post inline comment for issue {} ({}:{}): {}",
+                        issue.getLeft().getIssue().key(),
+                        issue.getRight(),
+                        issue.getLeft().getIssue().getLine(),
+                        ex.getMessage());
             }
         });
 
@@ -152,16 +162,19 @@ public abstract class DiscussionAwarePullRequestDecorator<C, P, U, D, N> impleme
 
     protected abstract Optional<String> createFrontEndUrl(P pullRequest, AnalysisDetails analysisDetails);
 
-    protected abstract P getPullRequest(C client, AlmSettingDto almSettingDto, ProjectAlmSettingDto projectAlmSettingDto, AnalysisDetails analysis);
+    protected abstract P getPullRequest(C client, AlmSettingDto almSettingDto,
+            ProjectAlmSettingDto projectAlmSettingDto, AnalysisDetails analysis);
 
     protected abstract U getCurrentUser(C client);
 
     protected abstract List<String> getCommitIdsForPullRequest(C client, P pullRequest);
 
-    protected abstract void submitPipelineStatus(C client, P pullRequest, AnalysisDetails analysis, AnalysisSummary analysisSummary);
+    protected abstract void submitPipelineStatus(C client, P pullRequest, AnalysisDetails analysis,
+            AnalysisSummary analysisSummary);
 
-    protected abstract void submitCommitNoteForIssue(C client, P pullRequest, PostAnalysisIssueVisitor.ComponentIssue issue, String filePath,
-                                                     AnalysisDetails analysis, AnalysisIssueSummary analysisIssueSummary);
+    protected abstract void submitCommitNoteForIssue(C client, P pullRequest,
+            PostAnalysisIssueVisitor.ComponentIssue issue, String filePath,
+            AnalysisDetails analysis, AnalysisIssueSummary analysisIssueSummary);
 
     protected abstract String getNoteContent(C client, N note);
 
@@ -177,28 +190,32 @@ public abstract class DiscussionAwarePullRequestDecorator<C, P, U, D, N> impleme
 
     protected abstract void deleteDiscussion(C client, D discussion, P pullRequest, List<N> notesForDiscussion);
 
-    protected abstract void submitSummaryNote(C client, P pullRequest, AnalysisDetails analysis, AnalysisSummary analysisSummary);
+    protected abstract void submitSummaryNote(C client, P pullRequest, AnalysisDetails analysis,
+            AnalysisSummary analysisSummary);
 
     protected abstract List<D> getDiscussions(C client, P pullRequest);
 
     protected abstract boolean isNoteFromCurrentUser(N note, U user);
 
-    private static List<PostAnalysisIssueVisitor.ComponentIssue> findIssuesWithoutComments(List<PostAnalysisIssueVisitor.ComponentIssue> openSonarqubeIssues,
-                                                                                           List<String> openGitlabIssueIdentifiers) {
+    private static List<PostAnalysisIssueVisitor.ComponentIssue> findIssuesWithoutComments(
+            List<PostAnalysisIssueVisitor.ComponentIssue> openSonarqubeIssues,
+            List<String> openGitlabIssueIdentifiers) {
         return openSonarqubeIssues.stream()
                 .filter(issue -> !openGitlabIssueIdentifiers.contains(issue.getIssue().key()))
                 .filter(issue -> issue.getIssue().getLine() != null)
                 .collect(Collectors.toList());
     }
 
-    private static Optional<Pair<PostAnalysisIssueVisitor.ComponentIssue, String>> loadScmPathsForIssues(PostAnalysisIssueVisitor.ComponentIssue componentIssue) {
+    private static Optional<Pair<PostAnalysisIssueVisitor.ComponentIssue, String>> loadScmPathsForIssues(
+            PostAnalysisIssueVisitor.ComponentIssue componentIssue) {
         return Optional.of(componentIssue)
                 .map(issue -> new ImmutablePair<>(issue, issue.getScmPath()))
                 .filter(pair -> pair.getRight().isPresent())
                 .map(pair -> new ImmutablePair<>(pair.getLeft(), pair.getRight().get()));
     }
 
-    private static boolean isIssueFromCommitInCurrentRequest(PostAnalysisIssueVisitor.ComponentIssue componentIssue, List<String> commitIds, ScmInfoRepository scmInfoRepository) {
+    private static boolean isIssueFromCommitInCurrentRequest(PostAnalysisIssueVisitor.ComponentIssue componentIssue,
+            List<String> commitIds, ScmInfoRepository scmInfoRepository) {
         return Optional.of(componentIssue)
                 .map(issue -> new ImmutablePair<>(issue.getIssue(), scmInfoRepository.getScmInfo(issue.getComponent())))
                 .filter(issuePair -> issuePair.getRight().isPresent())
@@ -212,15 +229,17 @@ public abstract class DiscussionAwarePullRequestDecorator<C, P, U, D, N> impleme
     }
 
     private List<Triple<D, N, Optional<ProjectIssueIdentifier>>> findOpenSonarqubeComments(C client, P pullRequest,
-                                                                                           U currentUser) {
+            U currentUser) {
         return getDiscussions(client, pullRequest).stream()
                 .map(discussion -> {
                     List<N> commentsForDiscussion = getNotesForDiscussion(client, discussion);
                     return commentsForDiscussion.stream()
-                        .findFirst()
-                        .filter(note -> isNoteFromCurrentUser(note, currentUser))
-                        .filter(note -> !isResolved(client, discussion, commentsForDiscussion, currentUser) || isSummaryComment(client, commentsForDiscussion.stream().findFirst().orElse(null)))
-                        .map(note -> new ImmutableTriple<>(discussion, note, parseIssueDetails(client, note)));
+                            .findFirst()
+                            .filter(note -> isNoteFromCurrentUser(note, currentUser))
+                            .filter(note -> !isResolved(client, discussion, commentsForDiscussion, currentUser)
+                                    || isSummaryComment(client,
+                                            commentsForDiscussion.stream().findFirst().orElse(null)))
+                            .map(note -> new ImmutableTriple<>(discussion, note, parseIssueDetails(client, note)));
                 })
                 .filter(Optional::isPresent)
                 .map(Optional::get)
@@ -229,15 +248,16 @@ public abstract class DiscussionAwarePullRequestDecorator<C, P, U, D, N> impleme
 
     private boolean isSummaryComment(C client, N note) {
         return Optional.of(note)
-            .flatMap(message -> parseIssueDetails(client, message))
-            .filter(projectIssueIdentifier -> DECORATOR_SUMMARY_COMMENT.equals(projectIssueIdentifier.getIssueKey()))
-            .isPresent();
+                .flatMap(message -> parseIssueDetails(client, message))
+                .filter(projectIssueIdentifier -> DECORATOR_SUMMARY_COMMENT
+                        .equals(projectIssueIdentifier.getIssueKey()))
+                .isPresent();
     }
 
     private List<String> closeOldDiscussionsAndExtractRemainingKeys(C client, U currentUser,
-                                                                    List<Triple<D, N, Optional<ProjectIssueIdentifier>>> openSonarqubeComments,
-                                                                    List<PostAnalysisIssueVisitor.ComponentIssue> openIssues,
-                                                                    P pullRequest) {
+            List<Triple<D, N, Optional<ProjectIssueIdentifier>>> openSonarqubeComments,
+            List<PostAnalysisIssueVisitor.ComponentIssue> openIssues,
+            P pullRequest) {
         List<String> openIssueKeys = openIssues.stream()
                 .map(issue -> issue.getIssue().key())
                 .collect(Collectors.toList());
@@ -268,7 +288,8 @@ public abstract class DiscussionAwarePullRequestDecorator<C, P, U, D, N> impleme
         return isClosed(discussion, notesInDiscussion) || notesInDiscussion.stream()
                 .filter(message -> isNoteFromCurrentUser(message, currentUser))
                 .map(message -> getNoteContent(client, message))
-                .anyMatch(content -> RESOLVED_ISSUE_NEEDING_CLOSED_MESSAGE.equals(content) || RESOLVED_SUMMARY_NEEDING_CLOSED_MESSAGE.equals(content));
+                .anyMatch(content -> RESOLVED_ISSUE_NEEDING_CLOSED_MESSAGE.equals(content)
+                        || RESOLVED_SUMMARY_NEEDING_CLOSED_MESSAGE.equals(content));
     }
 
     private void resolveOrPlaceFinalCommentOnDiscussion(C client, U currentUser, D discussion, P pullRequest) {
@@ -285,8 +306,8 @@ public abstract class DiscussionAwarePullRequestDecorator<C, P, U, D, N> impleme
     private void deleteOrPlaceFinalCommentOnDiscussion(C client, U currentUser, D discussion, P pullRequest) {
         List<N> notesForDiscussion = getNotesForDiscussion(client, discussion);
         if (notesForDiscussion.stream()
-            .filter(this::isUserNote)
-            .anyMatch(note -> !isNoteFromCurrentUser(note, currentUser))) {
+                .filter(this::isUserNote)
+                .anyMatch(note -> !isNoteFromCurrentUser(note, currentUser))) {
             addNoteToDiscussion(client, discussion, pullRequest, RESOLVED_SUMMARY_NEEDING_CLOSED_MESSAGE);
         } else {
             deleteDiscussion(client, discussion, pullRequest, notesForDiscussion);
@@ -356,8 +377,10 @@ public abstract class DiscussionAwarePullRequestDecorator<C, P, U, D, N> impleme
         }
     }
 
-    private static boolean isCommentFromCurrentProject(Triple<?, ?, Optional<ProjectIssueIdentifier>> comment, String projectId) {
-        return comment.getRight().filter(projectIssueIdentifier -> projectId.equals(projectIssueIdentifier.getProjectKey())).isPresent();
+    private static boolean isCommentFromCurrentProject(Triple<?, ?, Optional<ProjectIssueIdentifier>> comment,
+            String projectId) {
+        return comment.getRight()
+                .filter(projectIssueIdentifier -> projectId.equals(projectIssueIdentifier.getProjectKey())).isPresent();
     }
 
     protected static class ProjectIssueIdentifier {
